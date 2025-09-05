@@ -108,6 +108,8 @@ def ensure_ollama_model(model: str, ollama_url_base: str = None, timeout: int = 
     except Exception as e:
         print("Error pulling Ollama model:", e)
     return False
+
+
 def ollama_generate(prompt: str, model: str = "gemma3:1b", temperature: float = 0.6, timeout: int = 180) -> Optional[str]:
     ollama_url_base = os.getenv("OLLAMA_URL", "http://ollama:11434")
     # Ensure model is available
@@ -128,6 +130,41 @@ def ollama_generate(prompt: str, model: str = "gemma3:1b", temperature: float = 
         return None
     except Exception as e:
         print(e)
+        return None
+
+def openrouter_generate(prompt: str, timeout: int = 180) -> Optional[str]:
+    """
+    Uses OpenRouter API to generate recipes, returns JSON string.
+    """
+    import requests
+    import json
+    api_key = os.getenv("OPENROUTER_API_KEY", "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")
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "",
+        "X-Title": "",
+    }
+    data = {
+        "model": "openai/gpt-oss-20b:free",
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    }
+    try:
+        resp = requests.post(url, headers=headers, data=json.dumps(data), timeout=timeout)
+        if resp.status_code == 200:
+            content = resp.json()['choices'][0]['message']['content']
+            return content
+        else:
+            print("OpenRouter error:", resp.text)
+            return None
+    except Exception as e:
+        print("OpenRouter exception:", e)
         return None
 
 SYSTEM_INSTRUCTIONS = """You are AI assistant specialized in crafting meal recipes for the user that the user constraints. \
@@ -261,7 +298,7 @@ def onboarding():
             st.session_state.onboarding_step = 2
         def back1_callback():
             st.session_state.onboarding_step = 0
-        col_back, col_next, _ = st.columns([0.1, 0.1, 0.8])
+        col_back, col_next, _ = st.columns([0.15, 0.15, 0.7])
         with col_back:
             st.button("Back", key="onboarding_back1", on_click=back1_callback)
         with col_next:
@@ -277,7 +314,7 @@ def onboarding():
             st.session_state.onboarding_step = 99  # Mark as done so main app loads
         def back2_callback():
             st.session_state.onboarding_step = 1
-        col_back, col_finish, _ = st.columns([0.1, 0.1, 0.8])
+        col_back, col_finish, _ = st.columns([0.15, 0.15, 0.7])
         with col_back:
             st.button("Back", key="onboarding_back2", on_click=back2_callback)
         with col_finish:
@@ -301,6 +338,9 @@ if st.session_state.get("onboarding_step", 0) < 3:
 
 # ---------- Main App (after onboarding) ----------
 if st.session_state.get("onboarding_step", 0) >= 3:
+    # Global variable to control Ollama usage
+    DISABLE_OLLAMA = True  # Set to True to use OpenRouter, False to use Ollama
+
     # Load user object for the current session
     users = load_users()
     user_obj = get_user(users, st.session_state.session_user)
@@ -365,28 +405,42 @@ if st.session_state.get("onboarding_step", 0) >= 3:
 
         with st.spinner("Generating recipes..."):
             prompt = build_recipe_prompt(user_obj.get("pantry", []), meal_type, time_limit, mood, constraints, must_use)
-            response_text = ollama_generate(prompt, model=model_name) if model_name else None
-            
-            if response_text:
-                # Try to parse the JSON
-                response_text = response_text[8:-4]
-                print("Ollama response text:", response_text)  # Debug: Log the raw response
-                try:
-                    recipes = json.loads(response_text)
-                    if not isinstance(recipes, list) or len(recipes) != 4:
-                        raise ValueError("Expected a list of 4 recipes.")
-                except json.JSONDecodeError:
-                    # Handle non-JSON output
-                    st.warning("Model returned non-JSON output. Displaying raw response.")
-                    recipes = [{"recipe": response_text}]  # Wrap raw text in a list for display
-                except Exception as e:
-                    print("Error parsing JSON:", e)  # Debug: Log the error
-                    st.warning("Unexpected error occurred. Falling back to local generator.")
+            if DISABLE_OLLAMA:
+                response_text = openrouter_generate(prompt)
+                if response_text:
+                    try:
+                        recipes = json.loads(response_text)
+                        if not isinstance(recipes, list) or len(recipes) != 4:
+                            raise ValueError("Expected a list of 4 recipes.")
+                    except Exception as e:
+                        print("Error parsing OpenRouter JSON:", e)
+                        st.warning("OpenRouter returned non-JSON output. Displaying raw response.")
+                        recipes = [{"recipe": response_text}]
+                else:
+                    print("OpenRouter not available or failed. Using naive generator.")
                     recipes = naive_generate_recipes(user_obj.get("pantry", []), meal_type, time_limit, mood, constraints, must_use)
             else:
-                # Ollama not available -> fallback
-                print("Ollama not available or failed. Using naive generator.")
-                recipes = naive_generate_recipes(user_obj.get("pantry", []), meal_type, time_limit, mood, constraints, must_use)
+                response_text = ollama_generate(prompt, model=model_name) if model_name else None
+                if response_text:
+                    # Try to parse the JSON
+                    response_text = response_text[8:-4]
+                    print("Ollama response text:", response_text)  # Debug: Log the raw response
+                    try:
+                        recipes = json.loads(response_text)
+                        if not isinstance(recipes, list) or len(recipes) != 4:
+                            raise ValueError("Expected a list of 4 recipes.")
+                    except json.JSONDecodeError:
+                        # Handle non-JSON output
+                        st.warning("Model returned non-JSON output. Displaying raw response.")
+                        recipes = [{"recipe": response_text}]  # Wrap raw text in a list for display
+                    except Exception as e:
+                        print("Error parsing JSON:", e)  # Debug: Log the error
+                        st.warning("Unexpected error occurred. Falling back to local generator.")
+                        recipes = naive_generate_recipes(user_obj.get("pantry", []), meal_type, time_limit, mood, constraints, must_use)
+                else:
+                    # Ollama not available -> fallback
+                    print("Ollama not available or failed. Using naive generator.")
+                    recipes = naive_generate_recipes(user_obj.get("pantry", []), meal_type, time_limit, mood, constraints, must_use)
 
             st.session_state.generated_recipes = recipes
 
