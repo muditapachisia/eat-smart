@@ -7,6 +7,50 @@ from typing import List, Dict, Any, Optional
 import requests
 import streamlit as st
 
+st.set_page_config(page_title="Recipe Buddy (MVP)", page_icon="🍳", layout="wide")
+
+custom_css = '''
+<style>
+body, .stApp {
+    background-color: #f5f5dc !important; /* beige / off-white */
+    font-family: Georgia, Arial, serif !important;
+}
+/* Sidebar background */
+section[data-testid="stSidebar"], .stSidebarContent {
+    background-color: #f5f5dc !important;
+}
+/* Header (main menu/deploy bar) */
+header[data-testid="stHeader"], .stHeader {
+    background-color: #f5f5dc !important;
+}
+/* Textboxes, dropdowns, textareas, selectboxes */
+input[type="text"], input[type="password"], textarea, .stTextInput>div>div>input, .stTextArea>div>textarea, .stSelectbox>div>div, .stMultiSelect>div>div, .stSlider>div {
+    background-color: #f5f5dc !important;
+    color: #d35400 !important;
+    border: 1px solid #d35400 !important;
+    font-family: Georgia, Arial, serif !important;
+}
+.stSelectbox>div>div, .stMultiSelect>div>div {
+    background-color: #f5f5dc !important;
+    color: #d35400 !important;
+}
+h1, h2, h3, h4, h5, h6, .stMarkdown, .stText, .stCaption, .stButton, .stRadio, .stSelectbox, .stTextInput, .stTextArea, .stSlider, .stSubheader, .stHeader, .stTitle, .stSidebar, .stExpander, .stDataFrame, .stTable, .stAlert, .stInfo, .stWarning, .stSuccess, .stError {
+    color: #d35400 !important; /* dark orange */
+    text-transform: capitalize !important;
+    font-family: Georgia, Arial, serif !important;
+}
+.stButton>button {
+    background-color: #d35400 !important;
+    color: #fff !important;
+    border-radius: 8px !important;
+    font-family: Georgia, Arial, serif !important;
+    text-transform: capitalize !important;
+}
+</style>
+'''
+
+st.markdown(custom_css, unsafe_allow_html=True)
+
 APP_TITLE = "Recipe Buddy (MVP)"
 DATA_DIR = ".recipe_buddy_data"
 USERS_FILE = os.path.join(DATA_DIR, "users.json")
@@ -129,7 +173,6 @@ def naive_generate_recipes(pantry: List[str], meal_type: str, time_limit: int, m
     return recipes
 
 # ---------- UI ----------
-st.set_page_config(page_title=APP_TITLE, page_icon="🍳", layout="wide")
 st.title(APP_TITLE)
 
 with st.sidebar:
@@ -236,12 +279,3 @@ if st.session_state.session_user:
                         st.markdown("\n".join([f"- {ing}" for ing in recipe.get("ingredients", [])]))
                         st.markdown("**Steps**")
                         st.markdown("\n".join([f"{idx+1}. {step}" for idx, step in enumerate(recipe.get("steps", []))]))
-    
-    
-    
-    
-    
-
-
-else:
-    st.info("Use the sidebar to log in or create an account.")
