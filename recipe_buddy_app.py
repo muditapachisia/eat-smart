@@ -1,4 +1,4 @@
-# Recipe Buddy - MVP (Local, CPU-Friendly)
+# EatSmart (Local, CPU-Friendly)
 # Streamlit app that uses a local open-source LLM via Ollama (optional) to suggest recipes
 
 import json
@@ -11,34 +11,43 @@ st.set_page_config(page_title="EatSmart", page_icon="🍳", layout="centered")
 
 custom_css = '''
 <style>
-body, .stApp, .stMarkdown, .stText, .stHeader, .stSubheader, .stTitle, .stCaption, .stDataFrame, .stAlert, .stTextInput, .stTextArea, .stSelectbox, .stMultiSelect, .stRadio, .stButton, .stCheckbox, .stSlider, .stNumberInput, .stDateInput, .stTimeInput, .stFileUploader, .stColorPicker, .stForm, .stFormSubmitButton, .stExpander, .stTabs, .stTab, .stMetric, .stJson, .stCode, .stException, .stError, .stWarning, .stSuccess, .stInfo, .stHelp, .stTooltip, .stProgress, .stSpinner, .stSidebar, .stSidebarContent, .stSidebarHeader, .stSidebarSubheader, .stSidebarTitle, .stSidebarCaption, .stSidebarDataFrame, .stSidebarAlert, .stSidebarTextInput, .stSidebarTextArea, .stSidebarSelectbox, .stSidebarMultiSelect, .stSidebarRadio, .stSidebarButton, .stSidebarCheckbox, .stSidebarSlider, .stSidebarNumberInput, .stSidebarDateInput, .stSidebarTimeInput, .stSidebarFileUploader, .stSidebarColorPicker, .stSidebarForm, .stSidebarFormSubmitButton, .stSidebarExpander, .stSidebarTabs, .stSidebarTab, .stSidebarMetric, .stSidebarJson, .stSidebarCode, .stSidebarException, .stSidebarError, .stSidebarWarning, .stSidebarSuccess, .stSidebarInfo, .stSidebarHelp, .stSidebarTooltip, .stSidebarProgress, .stSidebarSpinner {
-        color: #D35400 !important;
-    }
-    /* Input fields text and border color */
-    input, textarea, select, .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"], .stMultiSelect div[data-baseweb="select"], .stNumberInput input, .stDateInput input, .stTimeInput input {
-        color: #3CB371 !important;
-        border-color: #3CB371 !important;
-    }
-    /* Input placeholder color */
-    ::placeholder {
-        color: #3CB371 !important;
-        opacity: 1;
-    }
-    /* Streamlit widget label color */
-    label, .css-1cpxqw2, .stTextInput label, .stTextArea label, .stSelectbox label, .stMultiSelect label, .stNumberInput label, .stDateInput label, .stTimeInput label {
-        color: #D35400 !important;
-    }
-    /* Remove Streamlit default blue focus ring */
-    input:focus, textarea:focus, select:focus {
-        outline: 2px solid #3CB371 !important;
-        box-shadow: 0 0 0 2px #3CB37133 !important;
-    }
+body, .stApp {
+    background-color: #1c1d1f !important;
+}
+.stApp, .stMarkdown, .stText, .stHeader, .stSubheader, .stTitle, .stCaption, .stDataFrame, .stAlert, .stTextInput, .stTextArea, .stSelectbox, .stMultiSelect, .stRadio, .stButton, .stCheckbox, .stSlider, .stNumberInput, .stDateInput, .stTimeInput, .stFileUploader, .stColorPicker, .stForm, .stFormSubmitButton, .stExpander, .stTabs, .stTab, .stMetric, .stJson, .stCode, .stException, .stError, .stWarning, .stSuccess, .stInfo, .stHelp, .stTooltip, .stProgress, .stSpinner, .stSidebar, .stSidebarContent, .stSidebarHeader, .stSidebarSubheader, .stSidebarTitle, .stSidebarCaption, .stSidebarDataFrame, .stSidebarAlert, .stSidebarTextInput, .stSidebarTextArea, .stSidebarSelectbox, .stSidebarMultiSelect, .stSidebarRadio, .stSidebarButton, .stSidebarCheckbox, .stSidebarSlider, .stSidebarNumberInput, .stSidebarDateInput, .stSidebarTimeInput, .stSidebarFileUploader, .stSidebarColorPicker, .stSidebarForm, .stSidebarFormSubmitButton, .stSidebarExpander, .stSidebarTabs, .stSidebarTab, .stSidebarMetric, .stSidebarJson, .stSidebarCode, .stSidebarException, .stSidebarError, .stSidebarWarning, .stSidebarSuccess, .stSidebarInfo, .stSidebarHelp, .stSidebarTooltip, .stSidebarProgress, .stSidebarSpinner {
+    color: #D35400 !important;
+}
+/* Input fields text and border color */
+input, textarea, select, .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"], .stMultiSelect div[data-baseweb="select"], .stNumberInput input, .stDateInput input, .stTimeInput input {
+    color: #1c1d1f !important;
+    border-color: #1c1d1f !important;
+}
+/* Input placeholder color */
+::placeholder {
+    color: #1c1d1f !important;
+    opacity: 1;
+}
+/* Streamlit widget label color */
+label, .css-1cpxqw2, .stTextInput label, .stTextArea label, .stSelectbox label, .stMultiSelect label, .stNumberInput label, .stDateInput label, .stTimeInput label {
+    color: #D35400 !important;
+}
+/* Remove Streamlit default blue focus ring */
+input:focus, textarea:focus, select:focus {
+    outline: 2px solid #1c1d1f !important;
+    box-shadow: 0 0 0 2px #1c1d1f33 !important;
+}
+</style>
+<style>
+/* Custom color for radio button options */
+.stRadio label, .stRadio div[data-baseweb="radio"] label, .stRadio span, .stRadio div[role="radio"] span {
+    color: #d35400 !important;
+}
 </style>
 '''
 
 st.markdown(custom_css, unsafe_allow_html=True)
 
-APP_TITLE = "Recipe Buddy (MVP)"
+APP_TITLE = "EatSmart"
 DATA_DIR = ".recipe_buddy_data"
 USERS_FILE = os.path.join(DATA_DIR, "users.json")
 
@@ -258,8 +267,8 @@ def onboarding():
         st.markdown("""
             <div style='display: flex; flex-direction: column; align-items: center; justify-content: center;'>
                 <h1 style='color: #d35400; font-family: Georgia, Arial, serif; margin-bottom: 0.2rem; text-align: center;'>Welcome to EatSmart!</h1>
-                <h3 style='text-align:center;'>Your AI-powered kitchen companion</h3>
-                <h5 style='text-align:center; font-style: italic;'>Get personalized recipes based on your pantry and preferences.</p>
+                <h3 style='text-align:center; color:#d35400;'>Your AI-powered kitchen companion</h3>
+                <h5 style='text-align:center; font-style: italic; color:#d35400;'>Get personalized recipes based on your pantry and preferences.</h5>
             </div>
         """, unsafe_allow_html=True)
         st.markdown("<br><br>", unsafe_allow_html=True)
@@ -277,7 +286,7 @@ def onboarding():
             st.session_state.show_warning = False
     elif step == 1:
         # Dietary preferences
-        st.header(f"Hi {st.session_state.onboarding_user}! Let's set up your profile.")
+        st.markdown(f"<h2 style='color:#d35400;'>Hi {st.session_state.onboarding_user}! Let's set up your profile.</h2>", unsafe_allow_html=True)
         diet_val = st.session_state.get("onboarding_diet", [])
         allergies_list = st.session_state.get("onboarding_allergies", [])
         allergies_val = ", ".join(allergies_list) if allergies_list else ""
@@ -304,7 +313,7 @@ def onboarding():
         with col_next:
             st.button("Next", key="onboarding_next2", on_click=next2_callback)
     elif step == 2:
-        st.header("Enter your pantry items")
+        st.markdown("<h2 style='color:#d35400;'>Enter your pantry items</h2>", unsafe_allow_html=True)
         pantry_val = st.session_state.get("onboarding_pantry", [])
         pantry_str = ", ".join(pantry_val) if isinstance(pantry_val, list) else (pantry_val or "")
         pantry = st.text_area("List your pantry items (comma-separated):", value=pantry_str, key="onboarding_pantry_widget")
@@ -360,11 +369,12 @@ if st.session_state.get("onboarding_step", 0) >= 3:
     """, unsafe_allow_html=True)
 
     with st.form("main_app_form"):
-        meal_type = st.radio(
+        meal_options = ["Choose an option", "Breakfast", "Lunch", "Dinner", "Snack"]
+        meal_type = st.selectbox(
             "Select a meal:",
-            ["Breakfast", "Lunch", "Dinner", "Snack"],
-            key="main_meal_type",
-            horizontal=True
+            meal_options,
+            index=0,
+            key="main_meal_type"
         )
         time_limit = st.slider(
             "How much time do you have? (minutes)",
@@ -404,16 +414,28 @@ if st.session_state.get("onboarding_step", 0) >= 3:
         must_use = [m.strip() for m in st.session_state.main_include_ingredients.split(",") if m.strip()]
 
         with st.spinner("Generating recipes..."):
+            import re
+            def robust_json_parse(response_text):
+                try:
+                    return json.loads(response_text)
+                except json.JSONDecodeError:
+                    match = re.search(r'\[.*\]', response_text, re.DOTALL)
+                    if match:
+                        try:
+                            return json.loads(match.group(0))
+                        except Exception:
+                            pass
+                    return None
+
             prompt = build_recipe_prompt(user_obj.get("pantry", []), meal_type, time_limit, mood, constraints, must_use)
             if DISABLE_OLLAMA:
                 response_text = openrouter_generate(prompt)
                 if response_text:
-                    try:
-                        recipes = json.loads(response_text)
-                        if not isinstance(recipes, list) or len(recipes) != 4:
-                            raise ValueError("Expected a list of 4 recipes.")
-                    except Exception as e:
-                        print("Error parsing OpenRouter JSON:", e)
+                    recipes = robust_json_parse(response_text)
+                    if recipes and isinstance(recipes, list) and len(recipes) == 4:
+                        pass
+                    else:
+                        print("Error parsing OpenRouter JSON")
                         st.warning("OpenRouter returned non-JSON output. Displaying raw response.")
                         recipes = [{"recipe": response_text}]
                 else:
@@ -446,7 +468,7 @@ if st.session_state.get("onboarding_step", 0) >= 3:
 
     if "generated_recipes" in st.session_state:
         recipes = st.session_state.generated_recipes[:4] if len(st.session_state.generated_recipes) >= 4 else st.session_state.generated_recipes
-        st.subheader("Recommendations")
+        st.markdown("<h2 style='color:#d35400;'>Recommendations</h2>", unsafe_allow_html=True)
         if recipes and isinstance(recipes, list):
             num_recipes = len(recipes)
             if "selected_recipe_idx" not in st.session_state:
