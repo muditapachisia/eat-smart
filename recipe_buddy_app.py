@@ -170,6 +170,8 @@ if "onboarding_allergies" not in st.session_state:
     st.session_state.onboarding_allergies = []
 if "onboarding_pantry" not in st.session_state:
     st.session_state.onboarding_pantry = []
+if "session_user" not in st.session_state:
+    st.session_state.session_user = None
 
 logo_path = "eatsmart_logo.png"  # Place your logo in the same directory
 
@@ -243,76 +245,56 @@ if st.session_state.get("onboarding_step", 0) < 3:
     st.stop()
 
 # ---------- Main App (after onboarding) ----------
-st.title(APP_TITLE)
-
-# Add a wide orange strip header at the top with centered logo
-st.markdown("""
-    <div style='width: 100vw; height: 4.5rem; background-color: #d35400; display: flex; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; z-index: 9999;'>
-        <img src='eatsmart_logo.png' style='height: 3rem; display: block; margin: 0 auto;' alt='EatSmart Logo'/>
-    </div>
-    <div style='height: 4.5rem;'></div> <!-- Spacer to prevent content overlap -->
-""", unsafe_allow_html=True)
-
-with st.sidebar:
-    st.header("Login / Profile")
-    username = st.text_input("Username", placeholder="e.g., alex", key="username")
-    login_btn = st.button("Log In / Create Account", use_container_width=True)
-
-if "session_user" not in st.session_state:
-    st.session_state.session_user = None
-
-users = load_users()
-user_obj = None
-
-if login_btn:
-    if username.strip():
-        user_obj = get_user(users, username.strip())
-        st.session_state.session_user = username.strip()
-        save_users(users)
-    else:
-        st.warning("Please provide a username.")
-
-if st.session_state.session_user:
-    st.success(f"Logged in as: {st.session_state.session_user}")
+if st.session_state.get("onboarding_step", 0) >= 3:
+    # Load user object for the current session
     users = load_users()
     user_obj = get_user(users, st.session_state.session_user)
+    # Set default model name for Ollama
+    model_name = "gemma3:1b"
+    st.markdown("""
+        <h2 style='text-align:center; color:#d35400; font-family:Georgia, Arial, serif;'>What are you hungry for today?</h2>
+    """, unsafe_allow_html=True)
 
-    with st.expander("Profile Settings", expanded=False):
-        diets = st.multiselect("Dietary preferences (optional)",
-                               ["vegetarian", "vegan", "gluten-free", "dairy-free", "halal", "kosher", "low-carb", "keto", "paleo"],
-                               default=user_obj["profile"].get("diet", []))
-        allergies = st.text_input("Allergies (comma-separated)", value=", ".join(user_obj["profile"].get("allergies", [])))
-        if st.button("Save Profile"):
-            user_obj["profile"]["diet"] = diets
-            user_obj["profile"]["allergies"] = [a.strip() for a in allergies.split(",") if a.strip()]
-            users[st.session_state.session_user] = user_obj
-            save_users(users)
-            st.success("Profile saved.")
+    with st.form("main_app_form"):
+        meal_type = st.radio(
+            "Select a meal:",
+            ["Breakfast", "Lunch", "Dinner", "Snack"],
+            key="main_meal_type",
+            horizontal=True
+        )
+        time_limit = st.number_input(
+            "How much time do you have? (minutes)",
+            min_value=1, max_value=240, value=30, step=1, key="main_time_limit"
+        )
+        mood_options = ["Comforting", "Spicy", "Creamy", "Light", "Tangy", "Savory", "Sweet", "Fresh", "Hearty", "Zesty"]
+        mood = st.multiselect(
+            "What are you in the mood for? (optional)",
+            mood_options,
+            key="main_mood"
+        )
+        constraint_options = ["High-protein", "Low-calorie", "Vegan", "Vegetarian", "Gluten-free", "Dairy-free", "Nut-free", "Low-carb"]
+        constraints = st.multiselect(
+            "Any constraints? (optional)",
+            constraint_options,
+            key="main_constraints"
+        )
+        include_ingredients = st.text_input(
+            "Any ingredients you want included? (optional)",
+            key="main_include_ingredients"
+        )
+        submitted = st.form_submit_button("Get Recipes")
 
-    st.subheader("Your Pantry")
-    pantry_text = st.text_area("Pantry list", value="\n".join(user_obj.get("pantry", [])), height=200)
-    if st.button("Save Pantry"):
-        user_obj["pantry"] = [line.strip() for line in pantry_text.splitlines() if line.strip()]
-        users[st.session_state.session_user] = user_obj
-        save_users(users)
-        st.success("Pantry saved.")
+    if submitted:
+        # Process the form data and generate recipes
+        meal_type = st.session_state.main_meal_type.lower()
+        time_limit = st.session_state.main_time_limit
+        mood = st.session_state.main_mood
+        constraints = st.session_state.main_constraints
+        must_use = [m.strip() for m in st.session_state.main_include_ingredients.split(",") if m.strip()]
 
-    st.subheader("What do you want to cook?")
-    meal_type = st.radio("Meal", ["breakfast", "lunch", "dinner", "snacks"], horizontal=True)
-    time_limit = st.slider("How much time do you have? (minutes)", 5, 90, 25, 5)
-    mood = st.multiselect("In the mood for (optional)", ["comforting", "spicy", "fresh", "creamy", "crispy", "hearty", "light", "tangy"])
-    constraints = st.multiselect("Constraints (optional)", ["healthy", "high-protein", "vegetarian", "vegan", "gluten-free", "dairy-free", "low-carb", "low-calorie"])
-    must_use_raw = st.text_input("Must-use ingredient(s) (optional, comma-separated)")
-    must_use = [m.strip() for m in must_use_raw.split(",") if m.strip()]
-
-    model_name = st.text_input("Ollama model (optional)", value="gemma3:1b")
-    generate_btn = st.button("Generate 5 Recipes", type="primary")
-
-    recipes = None
-    if generate_btn:
         with st.spinner("Generating recipes..."):
             prompt = build_recipe_prompt(user_obj.get("pantry", []), meal_type, time_limit, mood, constraints, must_use)
-            response_text = ollama_generate(prompt, model=model_name) if model_name else None
+            response_text = ollama_generate(prompt) if model_name else None
             print("LLM response:", response_text)  # Debug: Check the LLM response
             print("Cleaned LLM response:", response_text[8:-4])  # Debug: Check the LLM response
             response_text = response_text[8:-4]
