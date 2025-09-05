@@ -130,11 +130,12 @@ def ollama_generate(prompt: str, model: str = "gemma3:1b", temperature: float = 
         print(e)
         return None
 
-SYSTEM_INSTRUCTIONS = """You are Recipe Buddy, a helpful cooking assistant.
-You must produce strictly VALID JSON when asked for recipe lists. No commentary.
-Each recipe must include: title, summary, total_time_minutes, ingredients (list of strings),
-steps (list of short imperative steps), and tags (list of strings).
-Prefer using the provided pantry ingredients. Respect constraints and time limits.
+SYSTEM_INSTRUCTIONS = """You are AI assistant specialized in crafting meal recipes for the user that the user constraints. \
+You must produce strictly VALID JSON when asked for recipe lists. No commentary. \
+Each recipe should also be a valid JSON and must include: title, summary, total_time_minutes, ingredients (list of strings), \
+steps (list of short imperative steps), and tags (list of strings). \
+Assume, you only have the provided pantry ingredients which are available for your use. Respect constraints and time limits. \
+Given the following context, generate EXACTLY 4 distinct recipes as a JSON array. Do not add new lines and tab spacing when creating the JSON response.
 """
 
 def build_recipe_prompt(pantry: List[str], meal_type: str, time_limit: int, mood: List[str], constraints: List[str], must_use: List[str]) -> str:
@@ -143,7 +144,7 @@ def build_recipe_prompt(pantry: List[str], meal_type: str, time_limit: int, mood
     cons_text = ", ".join(constraints) if constraints else "none"
     must_text = ", ".join(must_use) if must_use else "none"
     return f"""{SYSTEM_INSTRUCTIONS}
-Given the following context, generate EXACTLY 5 distinct recipes as a JSON array.
+Given the following context, generate EXACTLY 4 distinct recipes as a JSON array.
 Context:
 - Meal type: {meal_type}
 - Time limit (minutes): {time_limit}
@@ -153,7 +154,7 @@ Context:
 - Pantry ingredients available: {pantry_text}
 
 Rules:
-- ONLY return valid JSON: an array of 5 recipe objects.
+- ONLY return valid JSON: an array of 4 recipe objects.
 - Each recipe object must have keys:
   "title" (string),
   "summary" (string),
@@ -161,8 +162,8 @@ Rules:
   "ingredients" (list of strings, relying on pantry where possible),
   "steps" (list of 5-10 concise steps),
   "tags" (list of strings).
-- Favor simple, quick recipes within the time limit.
-- Avoid exotic ingredients not in the pantry unless absolutely necessary.
+- Favor simple, quick recipes that respect the time limit.
+- Avoid exotic ingredients not in the pantry.
 - Keep titles unique and succinct.
 JSON:
 """
@@ -241,17 +242,30 @@ def onboarding():
         # Dietary preferences
         st.header(f"Hi {st.session_state.onboarding_user}! Let's set up your profile.")
         diet_val = st.session_state.get("onboarding_diet", [])
-        allergies_val = st.session_state.get("onboarding_allergies", "")
-        diet = st.multiselect("Dietary preferences:", ["Vegetarian", "Non-Vegetarian", "Vegan"], default=diet_val, key="onboarding_diet_widget")
-        allergies = st.text_input("Allergies (comma-separated):", value=allergies_val, key="onboarding_allergies_widget")
+        allergies_list = st.session_state.get("onboarding_allergies", [])
+        allergies_val = ", ".join(allergies_list) if allergies_list else ""
+        diet = st.multiselect(
+            "Dietary preferences:",
+            ["Vegetarian", "Non-Vegetarian", "Vegan"],
+            default=diet_val,
+            key="onboarding_diet_widget"
+        )
+        allergies = st.text_input(
+            "Allergies (comma-separated):",
+            value=allergies_val,
+            key="onboarding_allergies_widget"
+        )
         def next2_callback():
             st.session_state.onboarding_diet = diet
             st.session_state.onboarding_allergies = [a.strip() for a in allergies.split(",") if a.strip()]
             st.session_state.onboarding_step = 2
         def back1_callback():
             st.session_state.onboarding_step = 0
-        st.button("Next", key="onboarding_next2", on_click=next2_callback)
-        st.button("Back", key="onboarding_back1", on_click=back1_callback)
+        col_back, col_next, _ = st.columns([0.1, 0.1, 0.8])
+        with col_back:
+            st.button("Back", key="onboarding_back1", on_click=back1_callback)
+        with col_next:
+            st.button("Next", key="onboarding_next2", on_click=next2_callback)
     elif step == 2:
         st.header("Enter your pantry items")
         pantry_val = st.session_state.get("onboarding_pantry", [])
@@ -263,8 +277,11 @@ def onboarding():
             st.session_state.onboarding_step = 99  # Mark as done so main app loads
         def back2_callback():
             st.session_state.onboarding_step = 1
-        st.button("Finish", key="onboarding_finish", on_click=finish_callback)
-        st.button("Back", key="onboarding_back2", on_click=back2_callback)
+        col_back, col_finish, _ = st.columns([0.1, 0.1, 0.8])
+        with col_back:
+            st.button("Back", key="onboarding_back2", on_click=back2_callback)
+        with col_finish:
+            st.button("Finish", key="onboarding_finish", on_click=finish_callback)
     else:
         # Onboarding complete, save user and proceed to main app
         users = load_users()
@@ -289,8 +306,17 @@ if st.session_state.get("onboarding_step", 0) >= 3:
     user_obj = get_user(users, st.session_state.session_user)
     # Set default model name for Ollama
     model_name = "gemma3:1b"
-    st.markdown("""
-        <h2 style='text-align:center; color:#d35400; font-family:Georgia, Arial, serif;'>What are you hungry for today?</h2>
+    import base64
+
+    with open(logo_path, "rb") as f:
+        logo_bytes = f.read()
+    logo_base64 = base64.b64encode(logo_bytes).decode("utf-8")
+
+    st.markdown(f"""
+        <div style='display: flex; align-items: center;'>
+            <img src='data:image/png;base64,{logo_base64}' alt='EatSmart Logo' style='height:48px; margin-right:16px;'>
+            <h2 style='color:#d35400; font-family:Georgia, Arial, serif; margin:0;'>What are you hungry for today?</h2>
+        </div>
     """, unsafe_allow_html=True)
 
     with st.form("main_app_form"):
@@ -300,9 +326,9 @@ if st.session_state.get("onboarding_step", 0) >= 3:
             key="main_meal_type",
             horizontal=True
         )
-        time_limit = st.number_input(
+        time_limit = st.slider(
             "How much time do you have? (minutes)",
-            min_value=1, max_value=240, value=30, step=1, key="main_time_limit"
+            min_value=5, max_value=120, value=30, step=1, key="main_time_limit"
         )
         mood_options = ["Comforting", "Spicy", "Creamy", "Light", "Tangy", "Savory", "Sweet", "Fresh", "Hearty", "Zesty"]
         mood = st.multiselect(
@@ -320,7 +346,14 @@ if st.session_state.get("onboarding_step", 0) >= 3:
             "Any ingredients you want included? (optional)",
             key="main_include_ingredients"
         )
-        submitted = st.form_submit_button("Get Recipes")
+        col1, col2 = st.columns([1,1])
+        with col1:
+            back_clicked = st.form_submit_button("Back to Edit Profile", use_container_width=True)
+        with col2:
+            submitted = st.form_submit_button("Get Recipes", use_container_width=True)
+        if back_clicked:
+            st.session_state.onboarding_step = 2
+            st.stop()
 
     if submitted:
         # Process the form data and generate recipes
@@ -337,10 +370,11 @@ if st.session_state.get("onboarding_step", 0) >= 3:
             if response_text:
                 # Try to parse the JSON
                 response_text = response_text[8:-4]
+                print("Ollama response text:", response_text)  # Debug: Log the raw response
                 try:
                     recipes = json.loads(response_text)
-                    if not isinstance(recipes, list) or len(recipes) != 5:
-                        raise ValueError("Expected a list of 5 recipes.")
+                    if not isinstance(recipes, list) or len(recipes) != 4:
+                        raise ValueError("Expected a list of 4 recipes.")
                 except json.JSONDecodeError:
                     # Handle non-JSON output
                     st.warning("Model returned non-JSON output. Displaying raw response.")
@@ -357,13 +391,14 @@ if st.session_state.get("onboarding_step", 0) >= 3:
             st.session_state.generated_recipes = recipes
 
     if "generated_recipes" in st.session_state:
-        recipes = st.session_state.generated_recipes[:4]  # Only show 4 recipes
+        recipes = st.session_state.generated_recipes[:4] if len(st.session_state.generated_recipes) >= 4 else st.session_state.generated_recipes
         st.subheader("Recommendations")
         if recipes and isinstance(recipes, list):
+            num_recipes = len(recipes)
             if "selected_recipe_idx" not in st.session_state:
                 st.session_state.selected_recipe_idx = None
             selected = st.session_state.selected_recipe_idx
-            if selected is not None:
+            if selected is not None and selected < num_recipes:
                 # Enlarged, flipped main card (simulate flip with conditional rendering)
                 st.markdown(f"""
                 <style>
@@ -434,26 +469,28 @@ if st.session_state.get("onboarding_step", 0) >= 3:
                   </div>
                 </div>
                 """, unsafe_allow_html=True)
-                # Mini cards row (other 3 cards) using columns for horizontal layout
-                mini_cards = [i for i in range(4) if i != selected]
-                mini_cols = st.columns(3, gap="large")
-                for col, idx in zip(mini_cols, mini_cards):
-                    recipe = recipes[idx]
-                    with col:
-                        if st.button(" ", key=f"mini_card_{idx}"):
-                            st.session_state.selected_recipe_idx = idx
-                        st.markdown(f"""
-                        <div class="mini-flip-card">
-                            <h5 style='color:#d35400; margin-bottom:0.5rem;'>{recipe.get('title','')}</h5>
-                            <p style='font-size:0.95rem; margin-bottom:0.3rem;'>{recipe.get('summary','')}</p>
-                            <span style='font-size:0.9rem; color:#d35400;'>⏱ {recipe.get('total_time_minutes','?')} min</span><br>
-                            <span style='font-size:0.9rem; color:#d35400;'>Tags: {', '.join(recipe.get('tags',[])[:4])}</span>
-                        </div>
-                        """, unsafe_allow_html=True)
+                # Mini cards row (other cards) using columns for horizontal layout
+                mini_cards = [i for i in range(num_recipes) if i != selected]
+                if mini_cards:
+                    mini_cols = st.columns(len(mini_cards), gap="large")
+                    for col, idx in zip(mini_cols, mini_cards):
+                        recipe = recipes[idx]
+                        with col:
+                            if st.button(" ", key=f"mini_card_{idx}"):
+                                st.session_state.selected_recipe_idx = idx
+                            st.markdown(f"""
+                            <div class="mini-flip-card">
+                                <h5 style='color:#d35400; margin-bottom:0.5rem;'>{recipe.get('title','')}</h5>
+                                <p style='font-size:0.95rem; margin-bottom:0.3rem;'>{recipe.get('summary','')}</p>
+                                <span style='font-size:0.9rem; color:#d35400;'>⏱ {recipe.get('total_time_minutes','?')} min</span><br>
+                                <span style='font-size:0.9rem; color:#d35400;'>Tags: {', '.join(recipe.get('tags',[])[:4])}</span>
+                            </div>
+                            """, unsafe_allow_html=True)
             else:
-                # Show 2x2 grid of cards (default view)
-                grid = [st.columns(2) for _ in range(2)]
-                for idx in range(4):
+                # Show grid of cards (default view)
+                grid_rows = (num_recipes + 1) // 2
+                grid = [st.columns(2) for _ in range(grid_rows)]
+                for idx in range(num_recipes):
                     row, col = divmod(idx, 2)
                     recipe = recipes[idx]
                     with grid[row][col]:
