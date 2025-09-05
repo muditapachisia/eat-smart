@@ -42,8 +42,46 @@ def get_user(users: Dict[str, Any], username: str) -> Dict[str, Any]:
     return users[username]
 
 # ---------- LLM Integration (Ollama) ----------
+def ensure_ollama_model(model: str, ollama_url_base: str = None, timeout: int = 180) -> bool:
+    """
+    Checks if the model is available, and pulls it if not.
+    Returns True if model is available or successfully pulled, False otherwise.
+    """
+    import time
+    if ollama_url_base is None:
+        ollama_url_base = os.getenv("OLLAMA_URL", "http://ollama:11434")
+    # Check model availability
+    try:
+        resp = requests.get(f"{ollama_url_base}/api/tags", timeout=timeout)
+        if resp.status_code == 200:
+            tags = resp.json().get("models", [])
+            if any(m.get("name", "") == model for m in tags):
+                return True
+    except Exception as e:
+        print("Error checking Ollama models:", e)
+        return False
+    # Pull model if not available
+    try:
+        print(f"Pulling Ollama model: {model}")
+        pull_resp = requests.post(f"{ollama_url_base}/api/pull", json={"name": model}, timeout=timeout)
+        if pull_resp.status_code == 200:
+            # Wait for model to finish pulling
+            for _ in range(30):
+                resp = requests.get(f"{ollama_url_base}/api/tags", timeout=timeout)
+                if resp.status_code == 200:
+                    tags = resp.json().get("models", [])
+                    if any(m.get("name", "") == model for m in tags):
+                        return True
+                time.sleep(10)
+        print(f"Failed to pull model {model}: {pull_resp.text}")
+    except Exception as e:
+        print("Error pulling Ollama model:", e)
+    return False
 def ollama_generate(prompt: str, model: str = "gemma3:1b", temperature: float = 0.6, timeout: int = 180) -> Optional[str]:
-    url = "http://localhost:11434/api/generate"
+    ollama_url_base = os.getenv("OLLAMA_URL", "http://ollama:11434")
+    # Ensure model is available
+    ensure_ollama_model(model, ollama_url_base, timeout)
+    url = f"{ollama_url_base}/api/generate"
     payload = {
         "model": model,
         "prompt": prompt,
@@ -192,11 +230,10 @@ if st.session_state.session_user:
         with st.spinner("Generating recipes..."):
             prompt = build_recipe_prompt(user_obj.get("pantry", []), meal_type, time_limit, mood, constraints, must_use)
             response_text = ollama_generate(prompt, model=model_name) if model_name else None
-            print("LLM response:", response_text)  # Debug: Check the LLM response
-            print("Cleaned LLM response:", response_text[8:-4])  # Debug: Check the LLM response
-            response_text = response_text[8:-4]
+            
             if response_text:
                 # Try to parse the JSON
+                response_text = response_text[8:-4]
                 try:
                     recipes = json.loads(response_text)
                     if not isinstance(recipes, list) or len(recipes) != 5:

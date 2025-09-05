@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Optional: preload a model
+    # entrypoint: ["/bin/sh", "-c", "ollama run gemma3:1b && ollama serve"]
+
+  app:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      - STREAMLIT_SERVER_PORT=8501
+    depends_on:
+      - ollama
+
+volumes:
+  ollama_data:
