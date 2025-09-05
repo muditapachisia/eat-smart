@@ -264,8 +264,13 @@ def onboarding():
     step = st.session_state.onboarding_step
     if step == 0:
         # Landing page
-        st.markdown("""
+        import base64
+        with open(logo_path, "rb") as f:
+            logo_bytes = f.read()
+        logo_base64 = base64.b64encode(logo_bytes).decode("utf-8")
+        st.markdown(f"""
             <div style='display: flex; flex-direction: column; align-items: center; justify-content: center;'>
+                <img src='data:image/png;base64,{logo_base64}' alt='EatSmart Logo' style='height:108px; margin-bottom:1rem;'>
                 <h1 style='color: #d35400; font-family: Georgia, Arial, serif; margin-bottom: 0.2rem; text-align: center;'>Welcome to EatSmart!</h1>
                 <h3 style='text-align:center; color:#d35400;'>Your AI-powered kitchen companion</h3>
                 <h5 style='text-align:center; font-style: italic; color:#d35400;'>Get personalized recipes based on your pantry and preferences.</h5>
