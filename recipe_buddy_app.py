@@ -7,6 +7,37 @@ from typing import List, Dict, Any, Optional
 import requests
 import streamlit as st
 
+st.set_page_config(page_title="EatSmart", page_icon="🍳", layout="centered")
+
+custom_css = '''
+<style>
+body, .stApp, .stMarkdown, .stText, .stHeader, .stSubheader, .stTitle, .stCaption, .stDataFrame, .stAlert, .stTextInput, .stTextArea, .stSelectbox, .stMultiSelect, .stRadio, .stButton, .stCheckbox, .stSlider, .stNumberInput, .stDateInput, .stTimeInput, .stFileUploader, .stColorPicker, .stForm, .stFormSubmitButton, .stExpander, .stTabs, .stTab, .stMetric, .stJson, .stCode, .stException, .stError, .stWarning, .stSuccess, .stInfo, .stHelp, .stTooltip, .stProgress, .stSpinner, .stSidebar, .stSidebarContent, .stSidebarHeader, .stSidebarSubheader, .stSidebarTitle, .stSidebarCaption, .stSidebarDataFrame, .stSidebarAlert, .stSidebarTextInput, .stSidebarTextArea, .stSidebarSelectbox, .stSidebarMultiSelect, .stSidebarRadio, .stSidebarButton, .stSidebarCheckbox, .stSidebarSlider, .stSidebarNumberInput, .stSidebarDateInput, .stSidebarTimeInput, .stSidebarFileUploader, .stSidebarColorPicker, .stSidebarForm, .stSidebarFormSubmitButton, .stSidebarExpander, .stSidebarTabs, .stSidebarTab, .stSidebarMetric, .stSidebarJson, .stSidebarCode, .stSidebarException, .stSidebarError, .stSidebarWarning, .stSidebarSuccess, .stSidebarInfo, .stSidebarHelp, .stSidebarTooltip, .stSidebarProgress, .stSidebarSpinner {
+        color: #D35400 !important;
+    }
+    /* Input fields text and border color */
+    input, textarea, select, .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"], .stMultiSelect div[data-baseweb="select"], .stNumberInput input, .stDateInput input, .stTimeInput input {
+        color: #3CB371 !important;
+        border-color: #3CB371 !important;
+    }
+    /* Input placeholder color */
+    ::placeholder {
+        color: #3CB371 !important;
+        opacity: 1;
+    }
+    /* Streamlit widget label color */
+    label, .css-1cpxqw2, .stTextInput label, .stTextArea label, .stSelectbox label, .stMultiSelect label, .stNumberInput label, .stDateInput label, .stTimeInput label {
+        color: #D35400 !important;
+    }
+    /* Remove Streamlit default blue focus ring */
+    input:focus, textarea:focus, select:focus {
+        outline: 2px solid #3CB371 !important;
+        box-shadow: 0 0 0 2px #3CB37133 !important;
+    }
+</style>
+'''
+
+st.markdown(custom_css, unsafe_allow_html=True)
+
 APP_TITLE = "Recipe Buddy (MVP)"
 DATA_DIR = ".recipe_buddy_data"
 USERS_FILE = os.path.join(DATA_DIR, "users.json")
@@ -166,67 +197,139 @@ def naive_generate_recipes(pantry: List[str], meal_type: str, time_limit: int, m
         })
     return recipes
 
-# ---------- UI ----------
-st.set_page_config(page_title=APP_TITLE, page_icon="🍳", layout="wide")
-st.title(APP_TITLE)
-
-with st.sidebar:
-    st.header("Login / Profile")
-    username = st.text_input("Username", placeholder="e.g., alex", key="username")
-    login_btn = st.button("Log In / Create Account", use_container_width=True)
-
+# ---------- Onboarding Flow ----------
+if "onboarding_step" not in st.session_state:
+    st.session_state.onboarding_step = 0
+if "onboarding_user" not in st.session_state:
+    st.session_state.onboarding_user = ""
+if "onboarding_diet" not in st.session_state:
+    st.session_state.onboarding_diet = []
+if "onboarding_allergies" not in st.session_state:
+    st.session_state.onboarding_allergies = []
+if "onboarding_pantry" not in st.session_state:
+    st.session_state.onboarding_pantry = []
 if "session_user" not in st.session_state:
     st.session_state.session_user = None
 
-users = load_users()
-user_obj = None
+logo_path = "eatsmart_logo.png"  # Place your logo in the same directory
 
-if login_btn:
-    if username.strip():
-        user_obj = get_user(users, username.strip())
-        st.session_state.session_user = username.strip()
-        save_users(users)
+def onboarding():
+    step = st.session_state.onboarding_step
+    if step == 0:
+        # Landing page
+        st.markdown("""
+            <div style='display: flex; flex-direction: column; align-items: center; justify-content: center;'>
+                <h1 style='color: #d35400; font-family: Georgia, Arial, serif; margin-bottom: 0.2rem; text-align: center;'>Welcome to EatSmart!</h1>
+                <h3 style='text-align:center;'>Your AI-powered kitchen companion</h3>
+                <h5 style='text-align:center; font-style: italic;'>Get personalized recipes based on your pantry and preferences.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("""<span style='color:#d35400; font-size:1.1rem;'>Enter your name or ID to get started:</span>""", unsafe_allow_html=True)
+        name = st.text_input("", key="onboarding_name", label_visibility="collapsed")
+        def next1_callback():
+            if name.strip():
+                st.session_state.onboarding_user = name.strip()
+                st.session_state.onboarding_step = 1
+            else:
+                st.session_state.show_warning = True
+        st.button("Next", key="onboarding_next1", on_click=next1_callback)
+        if st.session_state.get("show_warning"):
+            st.warning("Please enter your name or ID.")
+            st.session_state.show_warning = False
+    elif step == 1:
+        # Dietary preferences
+        st.header(f"Hi {st.session_state.onboarding_user}! Let's set up your profile.")
+        diet_val = st.session_state.get("onboarding_diet", [])
+        allergies_val = st.session_state.get("onboarding_allergies", "")
+        diet = st.multiselect("Dietary preferences:", ["Vegetarian", "Non-Vegetarian", "Vegan"], default=diet_val, key="onboarding_diet_widget")
+        allergies = st.text_input("Allergies (comma-separated):", value=allergies_val, key="onboarding_allergies_widget")
+        def next2_callback():
+            st.session_state.onboarding_diet = diet
+            st.session_state.onboarding_allergies = [a.strip() for a in allergies.split(",") if a.strip()]
+            st.session_state.onboarding_step = 2
+        def back1_callback():
+            st.session_state.onboarding_step = 0
+        st.button("Next", key="onboarding_next2", on_click=next2_callback)
+        st.button("Back", key="onboarding_back1", on_click=back1_callback)
+    elif step == 2:
+        st.header("Enter your pantry items")
+        pantry_val = st.session_state.get("onboarding_pantry", [])
+        pantry_str = ", ".join(pantry_val) if isinstance(pantry_val, list) else (pantry_val or "")
+        pantry = st.text_area("List your pantry items (comma-separated):", value=pantry_str, key="onboarding_pantry_widget")
+        def finish_callback():
+            st.session_state.onboarding_pantry = [item.strip() for item in pantry.split(",") if item.strip()]
+            st.session_state.onboarding_complete = True
+            st.session_state.onboarding_step = 99  # Mark as done so main app loads
+        def back2_callback():
+            st.session_state.onboarding_step = 1
+        st.button("Finish", key="onboarding_finish", on_click=finish_callback)
+        st.button("Back", key="onboarding_back2", on_click=back2_callback)
     else:
-        st.warning("Please provide a username.")
+        # Onboarding complete, save user and proceed to main app
+        users = load_users()
+        user_obj = get_user(users, st.session_state.onboarding_user)
+        user_obj["pantry"] = st.session_state.onboarding_pantry
+        user_obj["profile"]["diet"] = st.session_state.onboarding_diet
+        user_obj["profile"]["allergies"] = st.session_state.onboarding_allergies
+        users[st.session_state.onboarding_user] = user_obj
+        save_users(users)
+        st.session_state.session_user = st.session_state.onboarding_user
+        st.session_state.onboarding_step = 99  # Mark as done
+        st.success("Profile saved! Proceeding to your recipe dashboard...")
 
-if st.session_state.session_user:
-    st.success(f"Logged in as: {st.session_state.session_user}")
+if st.session_state.get("onboarding_step", 0) < 3:
+    onboarding()
+    st.stop()
+
+# ---------- Main App (after onboarding) ----------
+if st.session_state.get("onboarding_step", 0) >= 3:
+    # Load user object for the current session
     users = load_users()
     user_obj = get_user(users, st.session_state.session_user)
+    # Set default model name for Ollama
+    model_name = "gemma3:1b"
+    st.markdown("""
+        <h2 style='text-align:center; color:#d35400; font-family:Georgia, Arial, serif;'>What are you hungry for today?</h2>
+    """, unsafe_allow_html=True)
 
-    with st.expander("Profile Settings", expanded=False):
-        diets = st.multiselect("Dietary preferences (optional)",
-                               ["vegetarian", "vegan", "gluten-free", "dairy-free", "halal", "kosher", "low-carb", "keto", "paleo"],
-                               default=user_obj["profile"].get("diet", []))
-        allergies = st.text_input("Allergies (comma-separated)", value=", ".join(user_obj["profile"].get("allergies", [])))
-        if st.button("Save Profile"):
-            user_obj["profile"]["diet"] = diets
-            user_obj["profile"]["allergies"] = [a.strip() for a in allergies.split(",") if a.strip()]
-            users[st.session_state.session_user] = user_obj
-            save_users(users)
-            st.success("Profile saved.")
+    with st.form("main_app_form"):
+        meal_type = st.radio(
+            "Select a meal:",
+            ["Breakfast", "Lunch", "Dinner", "Snack"],
+            key="main_meal_type",
+            horizontal=True
+        )
+        time_limit = st.number_input(
+            "How much time do you have? (minutes)",
+            min_value=1, max_value=240, value=30, step=1, key="main_time_limit"
+        )
+        mood_options = ["Comforting", "Spicy", "Creamy", "Light", "Tangy", "Savory", "Sweet", "Fresh", "Hearty", "Zesty"]
+        mood = st.multiselect(
+            "What are you in the mood for? (optional)",
+            mood_options,
+            key="main_mood"
+        )
+        constraint_options = ["High-protein", "Low-calorie", "Vegan", "Vegetarian", "Gluten-free", "Dairy-free", "Nut-free", "Low-carb"]
+        constraints = st.multiselect(
+            "Any constraints? (optional)",
+            constraint_options,
+            key="main_constraints"
+        )
+        include_ingredients = st.text_input(
+            "Any ingredients you want included? (optional)",
+            key="main_include_ingredients"
+        )
+        submitted = st.form_submit_button("Get Recipes")
 
-    st.subheader("Your Pantry")
-    pantry_text = st.text_area("Pantry list", value="\n".join(user_obj.get("pantry", [])), height=200)
-    if st.button("Save Pantry"):
-        user_obj["pantry"] = [line.strip() for line in pantry_text.splitlines() if line.strip()]
-        users[st.session_state.session_user] = user_obj
-        save_users(users)
-        st.success("Pantry saved.")
+    if submitted:
+        # Process the form data and generate recipes
+        meal_type = st.session_state.main_meal_type.lower()
+        time_limit = st.session_state.main_time_limit
+        mood = st.session_state.main_mood
+        constraints = st.session_state.main_constraints
+        must_use = [m.strip() for m in st.session_state.main_include_ingredients.split(",") if m.strip()]
 
-    st.subheader("What do you want to cook?")
-    meal_type = st.radio("Meal", ["breakfast", "lunch", "dinner", "snacks"], horizontal=True)
-    time_limit = st.slider("How much time do you have? (minutes)", 5, 90, 25, 5)
-    mood = st.multiselect("In the mood for (optional)", ["comforting", "spicy", "fresh", "creamy", "crispy", "hearty", "light", "tangy"])
-    constraints = st.multiselect("Constraints (optional)", ["healthy", "high-protein", "vegetarian", "vegan", "gluten-free", "dairy-free", "low-carb", "low-calorie"])
-    must_use_raw = st.text_input("Must-use ingredient(s) (optional, comma-separated)")
-    must_use = [m.strip() for m in must_use_raw.split(",") if m.strip()]
-
-    model_name = st.text_input("Ollama model (optional)", value="gemma3:1b")
-    generate_btn = st.button("Generate 5 Recipes", type="primary")
-
-    recipes = None
-    if generate_btn:
         with st.spinner("Generating recipes..."):
             prompt = build_recipe_prompt(user_obj.get("pantry", []), meal_type, time_limit, mood, constraints, must_use)
             response_text = ollama_generate(prompt, model=model_name) if model_name else None
@@ -273,12 +376,3 @@ if st.session_state.session_user:
                         st.markdown("\n".join([f"- {ing}" for ing in recipe.get("ingredients", [])]))
                         st.markdown("**Steps**")
                         st.markdown("\n".join([f"{idx+1}. {step}" for idx, step in enumerate(recipe.get("steps", []))]))
-    
-    
-    
-    
-    
-
-
-else:
-    st.info("Use the sidebar to log in or create an account.")
