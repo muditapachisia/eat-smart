@@ -320,22 +320,158 @@ if st.session_state.get("onboarding_step", 0) >= 3:
             st.session_state.generated_recipes = recipes
 
     if "generated_recipes" in st.session_state:
-        recipes = st.session_state.generated_recipes
+        recipes = st.session_state.generated_recipes[:4]  # Only show 4 recipes
         st.subheader("Recommendations")
-        # Card-style display for each recipe
         if recipes and isinstance(recipes, list):
-            cols = st.columns(len(recipes))
-            for i, recipe in enumerate(recipes):
-                with cols[i]:
-                    if isinstance(recipe, dict) and "recipe" in recipe:
-                        st.text(recipe["recipe"])
-                    else:
-                        st.markdown(f"**{recipe.get('title', f'Recipe {i+1}')}**")
-                        st.caption(recipe.get("summary", ""))
-                        st.markdown(f"⏱ **{recipe.get('total_time_minutes', '?')} min**")
-                        if recipe.get("tags"):
-                            st.caption(" · ".join(recipe["tags"]))
-                        st.markdown("**Ingredients**")
-                        st.markdown("\n".join([f"- {ing}" for ing in recipe.get("ingredients", [])]))
-                        st.markdown("**Steps**")
-                        st.markdown("\n".join([f"{idx+1}. {step}" for idx, step in enumerate(recipe.get("steps", []))]))
+            if "selected_recipe_idx" not in st.session_state:
+                st.session_state.selected_recipe_idx = None
+            selected = st.session_state.selected_recipe_idx
+            if selected is not None:
+                # Enlarged, flipped main card (simulate flip with conditional rendering)
+                st.markdown(f"""
+                <style>
+                .main-flip-card {{
+                    background-color: transparent;
+                    width: 520px;
+                    height: 520px;
+                    perspective: 1000px;
+                    margin: 0 auto 2rem auto;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }}
+                .main-flip-card-inner {{
+                    width: 100%;
+                    height: 100%;
+                    border-radius: 16px;
+                    box-shadow: 0 2px 16px #d3540033;
+                    background: #fff7ed;
+                    padding: 2rem;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: flex-start;
+                    align-items: flex-start;
+                    overflow-y: auto;
+                    max-height: 520px;
+                }}
+                .mini-flip-card {{
+                    width: 180px;
+                    height: 180px;
+                    background: #fff7ed;
+                    border-radius: 16px;
+                    box-shadow: 0 2px 8px #d3540033;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: flex-start;
+                    align-items: flex-start;
+                    cursor: pointer;
+                    transition: box-shadow 0.2s;
+                    overflow-y: auto;
+                    padding: 1rem;
+                }}
+                .mini-flip-card:hover {{
+                    box-shadow: 0 4px 16px #d3540066;
+                }}
+                .main-flip-card-inner::-webkit-scrollbar, .mini-flip-card::-webkit-scrollbar {{
+                    width: 8px;
+                }}
+                .main-flip-card-inner::-webkit-scrollbar-thumb, .mini-flip-card::-webkit-scrollbar-thumb {{
+                    background: #d3540033;
+                    border-radius: 8px;
+                }}
+                </style>
+                <div class="main-flip-card">
+                  <div class="main-flip-card-inner" onclick="window.parent.postMessage({{isStreamlitMessage: true, type: 'streamlit:setComponentValue', value: null}}, '*');">
+                    <h3 style='color:#d35400;'>{recipes[selected].get('title','')}</h3>
+                    <b>Description:</b> {recipes[selected].get('summary','')}<br>
+                    <b>Time Required:</b> {recipes[selected].get('total_time_minutes','?')} min<br>
+                    <b>Tags:</b> {', '.join(recipes[selected].get('tags',[]))}<br>
+                    <b>Ingredients:</b>
+                    <ul style='text-align:left;'>
+                      {''.join([f'<li>{ing}</li>' for ing in recipes[selected].get('ingredients',[])])}
+                    </ul>
+                    <b>Steps:</b>
+                    <ol style='text-align:left;'>
+                      {''.join([f'<li>{step}</li>' for step in recipes[selected].get('steps',[])])}
+                    </ol>
+                  </div>
+                </div>
+                """, unsafe_allow_html=True)
+                # Mini cards row (other 3 cards) using columns for horizontal layout
+                mini_cards = [i for i in range(4) if i != selected]
+                mini_cols = st.columns(3, gap="large")
+                for col, idx in zip(mini_cols, mini_cards):
+                    recipe = recipes[idx]
+                    with col:
+                        if st.button(" ", key=f"mini_card_{idx}"):
+                            st.session_state.selected_recipe_idx = idx
+                        st.markdown(f"""
+                        <div class="mini-flip-card">
+                            <h5 style='color:#d35400; margin-bottom:0.5rem;'>{recipe.get('title','')}</h5>
+                            <p style='font-size:0.95rem; margin-bottom:0.3rem;'>{recipe.get('summary','')}</p>
+                            <span style='font-size:0.9rem; color:#d35400;'>⏱ {recipe.get('total_time_minutes','?')} min</span><br>
+                            <span style='font-size:0.9rem; color:#d35400;'>Tags: {', '.join(recipe.get('tags',[])[:4])}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+            else:
+                # Show 2x2 grid of cards (default view)
+                grid = [st.columns(2) for _ in range(2)]
+                for idx in range(4):
+                    row, col = divmod(idx, 2)
+                    recipe = recipes[idx]
+                    with grid[row][col]:
+                        if st.button(" ", key=f"card_{idx}"):
+                            st.session_state.selected_recipe_idx = idx
+                        st.markdown(f"""
+                        <style>
+                        .flip-card-{idx} {{
+                            background-color: transparent;
+                            width: 260px;
+                            height: 260px;
+                            perspective: 1000px;
+                            margin: 0 auto 1.2rem auto;
+                            cursor: pointer;
+                        }}
+                        .flip-card-inner-{idx} {{
+                            position: relative;
+                            width: 100%;
+                            height: 100%;
+                            text-align: center;
+                            transition: transform 0.6s;
+                            transform-style: preserve-3d;
+                        }}
+                        .flip-card-front-{idx} {{
+                            position: absolute;
+                            width: 100%;
+                            height: 100%;
+                            backface-visibility: hidden;
+                            border-radius: 16px;
+                            box-shadow: 0 2px 8px #d3540033;
+                            background: #fff7ed;
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: flex-start;
+                            align-items: flex-start;
+                            z-index: 2;
+                            overflow-y: auto;
+                            padding: 1rem;
+                        }}
+                        .flip-card-front-{idx}::-webkit-scrollbar {{
+                            width: 8px;
+                        }}
+                        .flip-card-front-{idx}::-webkit-scrollbar-thumb {{
+                            background: #d3540033;
+                            border-radius: 8px;
+                        }}
+                        </style>
+                        <div class="flip-card-{idx}">
+                          <div class="flip-card-inner-{idx}">
+                            <div class="flip-card-front-{idx}">
+                              <h4 style='color:#d35400; margin-bottom:0.5rem;'>{recipe.get('title','')}</h4>
+                              <p style='font-size:1.05rem; margin-bottom:0.3rem;'>{recipe.get('summary','')}</p>
+                              <span style='font-size:0.95rem; color:#d35400;'>⏱ {recipe.get('total_time_minutes','?')} min</span><br>
+                              <span style='font-size:0.95rem; color:#d35400;'>Tags: {', '.join(recipe.get('tags',[])[:4])}</span>
+                            </div>
+                          </div>
+                        </div>
+                        """, unsafe_allow_html=True)
