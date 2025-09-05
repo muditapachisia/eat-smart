@@ -7,45 +7,32 @@ from typing import List, Dict, Any, Optional
 import requests
 import streamlit as st
 
-st.set_page_config(page_title="Recipe Buddy (MVP)", page_icon="🍳", layout="wide")
+st.set_page_config(page_title="EatSmart", page_icon="🍳", layout="centered")
 
 custom_css = '''
 <style>
-body, .stApp {
-    background-color: #f5f5dc !important; /* beige / off-white */
-    font-family: Georgia, Arial, serif !important;
-}
-/* Sidebar background */
-section[data-testid="stSidebar"], .stSidebarContent {
-    background-color: #f5f5dc !important;
-}
-/* Header (main menu/deploy bar) */
-header[data-testid="stHeader"], .stHeader {
-    background-color: #f5f5dc !important;
-}
-/* Textboxes, dropdowns, textareas, selectboxes */
-input[type="text"], input[type="password"], textarea, .stTextInput>div>div>input, .stTextArea>div>textarea, .stSelectbox>div>div, .stMultiSelect>div>div, .stSlider>div {
-    background-color: #f5f5dc !important;
-    color: #d35400 !important;
-    border: 1px solid #d35400 !important;
-    font-family: Georgia, Arial, serif !important;
-}
-.stSelectbox>div>div, .stMultiSelect>div>div {
-    background-color: #f5f5dc !important;
-    color: #d35400 !important;
-}
-h1, h2, h3, h4, h5, h6, .stMarkdown, .stText, .stCaption, .stButton, .stRadio, .stSelectbox, .stTextInput, .stTextArea, .stSlider, .stSubheader, .stHeader, .stTitle, .stSidebar, .stExpander, .stDataFrame, .stTable, .stAlert, .stInfo, .stWarning, .stSuccess, .stError {
-    color: #d35400 !important; /* dark orange */
-    text-transform: capitalize !important;
-    font-family: Georgia, Arial, serif !important;
-}
-.stButton>button {
-    background-color: #d35400 !important;
-    color: #fff !important;
-    border-radius: 8px !important;
-    font-family: Georgia, Arial, serif !important;
-    text-transform: capitalize !important;
-}
+body, .stApp, .stMarkdown, .stText, .stHeader, .stSubheader, .stTitle, .stCaption, .stDataFrame, .stAlert, .stTextInput, .stTextArea, .stSelectbox, .stMultiSelect, .stRadio, .stButton, .stCheckbox, .stSlider, .stNumberInput, .stDateInput, .stTimeInput, .stFileUploader, .stColorPicker, .stForm, .stFormSubmitButton, .stExpander, .stTabs, .stTab, .stMetric, .stJson, .stCode, .stException, .stError, .stWarning, .stSuccess, .stInfo, .stHelp, .stTooltip, .stProgress, .stSpinner, .stSidebar, .stSidebarContent, .stSidebarHeader, .stSidebarSubheader, .stSidebarTitle, .stSidebarCaption, .stSidebarDataFrame, .stSidebarAlert, .stSidebarTextInput, .stSidebarTextArea, .stSidebarSelectbox, .stSidebarMultiSelect, .stSidebarRadio, .stSidebarButton, .stSidebarCheckbox, .stSidebarSlider, .stSidebarNumberInput, .stSidebarDateInput, .stSidebarTimeInput, .stSidebarFileUploader, .stSidebarColorPicker, .stSidebarForm, .stSidebarFormSubmitButton, .stSidebarExpander, .stSidebarTabs, .stSidebarTab, .stSidebarMetric, .stSidebarJson, .stSidebarCode, .stSidebarException, .stSidebarError, .stSidebarWarning, .stSidebarSuccess, .stSidebarInfo, .stSidebarHelp, .stSidebarTooltip, .stSidebarProgress, .stSidebarSpinner {
+        color: #D35400 !important;
+    }
+    /* Input fields text and border color */
+    input, textarea, select, .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"], .stMultiSelect div[data-baseweb="select"], .stNumberInput input, .stDateInput input, .stTimeInput input {
+        color: #3CB371 !important;
+        border-color: #3CB371 !important;
+    }
+    /* Input placeholder color */
+    ::placeholder {
+        color: #3CB371 !important;
+        opacity: 1;
+    }
+    /* Streamlit widget label color */
+    label, .css-1cpxqw2, .stTextInput label, .stTextArea label, .stSelectbox label, .stMultiSelect label, .stNumberInput label, .stDateInput label, .stTimeInput label {
+        color: #D35400 !important;
+    }
+    /* Remove Streamlit default blue focus ring */
+    input:focus, textarea:focus, select:focus {
+        outline: 2px solid #3CB371 !important;
+        box-shadow: 0 0 0 2px #3CB37133 !important;
+    }
 </style>
 '''
 
@@ -172,8 +159,99 @@ def naive_generate_recipes(pantry: List[str], meal_type: str, time_limit: int, m
         })
     return recipes
 
-# ---------- UI ----------
+# ---------- Onboarding Flow ----------
+if "onboarding_step" not in st.session_state:
+    st.session_state.onboarding_step = 0
+if "onboarding_user" not in st.session_state:
+    st.session_state.onboarding_user = ""
+if "onboarding_diet" not in st.session_state:
+    st.session_state.onboarding_diet = []
+if "onboarding_allergies" not in st.session_state:
+    st.session_state.onboarding_allergies = []
+if "onboarding_pantry" not in st.session_state:
+    st.session_state.onboarding_pantry = []
+
+logo_path = "eatsmart_logo.png"  # Place your logo in the same directory
+
+def onboarding():
+    step = st.session_state.onboarding_step
+    if step == 0:
+        # Landing page
+        st.markdown("""
+            <div style='display: flex; flex-direction: column; align-items: center; justify-content: center;'>
+                <h1 style='color: #d35400; font-family: Georgia, Arial, serif; margin-bottom: 0.2rem; text-align: center;'>Welcome to EatSmart!</h1>
+                <h3 style='text-align:center;'>Your AI-powered kitchen companion</h3>
+                <h5 style='text-align:center; font-style: italic;'>Get personalized recipes based on your pantry and preferences.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("""<span style='color:#d35400; font-size:1.1rem;'>Enter your name or ID to get started:</span>""", unsafe_allow_html=True)
+        name = st.text_input("", key="onboarding_name", label_visibility="collapsed")
+        def next1_callback():
+            if name.strip():
+                st.session_state.onboarding_user = name.strip()
+                st.session_state.onboarding_step = 1
+            else:
+                st.session_state.show_warning = True
+        st.button("Next", key="onboarding_next1", on_click=next1_callback)
+        if st.session_state.get("show_warning"):
+            st.warning("Please enter your name or ID.")
+            st.session_state.show_warning = False
+    elif step == 1:
+        # Dietary preferences
+        st.header(f"Hi {st.session_state.onboarding_user}! Let's set up your profile.")
+        diet_val = st.session_state.get("onboarding_diet", [])
+        allergies_val = st.session_state.get("onboarding_allergies", "")
+        diet = st.multiselect("Dietary preferences:", ["Vegetarian", "Non-Vegetarian", "Vegan"], default=diet_val, key="onboarding_diet_widget")
+        allergies = st.text_input("Allergies (comma-separated):", value=allergies_val, key="onboarding_allergies_widget")
+        def next2_callback():
+            st.session_state.onboarding_diet = diet
+            st.session_state.onboarding_allergies = [a.strip() for a in allergies.split(",") if a.strip()]
+            st.session_state.onboarding_step = 2
+        def back1_callback():
+            st.session_state.onboarding_step = 0
+        st.button("Next", key="onboarding_next2", on_click=next2_callback)
+        st.button("Back", key="onboarding_back1", on_click=back1_callback)
+    elif step == 2:
+        st.header("Enter your pantry items")
+        pantry_val = st.session_state.get("onboarding_pantry", [])
+        pantry_str = ", ".join(pantry_val) if isinstance(pantry_val, list) else (pantry_val or "")
+        pantry = st.text_area("List your pantry items (comma-separated):", value=pantry_str, key="onboarding_pantry_widget")
+        def finish_callback():
+            st.session_state.onboarding_pantry = [item.strip() for item in pantry.split(",") if item.strip()]
+            st.session_state.onboarding_complete = True
+            st.session_state.onboarding_step = 99  # Mark as done so main app loads
+        def back2_callback():
+            st.session_state.onboarding_step = 1
+        st.button("Finish", key="onboarding_finish", on_click=finish_callback)
+        st.button("Back", key="onboarding_back2", on_click=back2_callback)
+    else:
+        # Onboarding complete, save user and proceed to main app
+        users = load_users()
+        user_obj = get_user(users, st.session_state.onboarding_user)
+        user_obj["pantry"] = st.session_state.onboarding_pantry
+        user_obj["profile"]["diet"] = st.session_state.onboarding_diet
+        user_obj["profile"]["allergies"] = st.session_state.onboarding_allergies
+        users[st.session_state.onboarding_user] = user_obj
+        save_users(users)
+        st.session_state.session_user = st.session_state.onboarding_user
+        st.session_state.onboarding_step = 99  # Mark as done
+        st.success("Profile saved! Proceeding to your recipe dashboard...")
+
+if st.session_state.get("onboarding_step", 0) < 3:
+    onboarding()
+    st.stop()
+
+# ---------- Main App (after onboarding) ----------
 st.title(APP_TITLE)
+
+# Add a wide orange strip header at the top with centered logo
+st.markdown("""
+    <div style='width: 100vw; height: 4.5rem; background-color: #d35400; display: flex; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; z-index: 9999;'>
+        <img src='eatsmart_logo.png' style='height: 3rem; display: block; margin: 0 auto;' alt='EatSmart Logo'/>
+    </div>
+    <div style='height: 4.5rem;'></div> <!-- Spacer to prevent content overlap -->
+""", unsafe_allow_html=True)
 
 with st.sidebar:
     st.header("Login / Profile")
