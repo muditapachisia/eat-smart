@@ -147,7 +147,7 @@ def openrouter_generate(prompt: str, timeout: int = 180) -> Optional[str]:
     """
     import requests
     import json
-    api_key = os.getenv("OPENROUTER_API_KEY", "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")
+    api_key = st.secrets["api_keys"]["openrouter"]
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
